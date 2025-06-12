@@ -1,6 +1,8 @@
 
-# Python ignores
+# Python/Cython ignores
 .venv/
+*.html
+*.c
 
 # Zig ignores
 .zig-cache/
