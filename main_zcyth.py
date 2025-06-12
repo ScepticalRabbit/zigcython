@@ -1,5 +1,5 @@
 import numpy as np
-import zcyth
+import src.zigcython.cython.zcyth as zcyth
 
 def main() -> None:
     print()

@@ -1,5 +1,5 @@
 # zigcython
-A minimal working example linking Python to Zig through Cython to send numpy arrays to Zig. For now it can deal with 1D numpy arrays
+A minimal working example linking Python to Zig through Cython to send numpy arrays to Zig. For now it can deal with 1D numpy arrays but I will be extending this in the future for multi-dimensional arrays and structs.
 
 
 ## Running the Example
