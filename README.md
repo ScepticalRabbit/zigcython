@@ -14,7 +14,7 @@ Install numpy, cython and ziglang:
 pip install numpy cython ziglang
 ```
 
-Build the Zig dynamic library and then theCcython files linking the Zig dynamic library (see setup.py):
+Build the Zig dynamic library and then the Cython files linking the Zig dynamic library (see setup.py):
 ```shell
 python setup.py build_ext --inplace -f
 ```
