@@ -14,7 +14,31 @@ import numpy
 class MultiBuildExt(build_ext):
 
     def run(self):
+
+        output_dir = Path(self.build_temp)
+        if not output_dir.is_dir():
+            output_dir.mkdir(exist_ok=True,parents=True)
+
+
+        if str(Path(self.build_lib).resolve()) not in self.library_dirs:
+            self.library_dirs.append(str(Path(self.build_lib).resolve()))
+
+        if str(Path(self.build_lib).resolve()) not in self.rpath:
+             self.rpath.append(str(Path(self.build_lib).resolve()))
+
+        for ee in self.extensions:
+            ee.include_dirs.append(str(output_dir))
+            ee.library_dirs.append(str(output_dir))
+
+            print(f"\nConfigured extension: {ee.name}")
+            print(f"  include_dirs: {ee.include_dirs}")
+            print(f"  library_dirs: {ee.library_dirs}")
+            print(f"  libraries: {ee.libraries}")
+            print()
+
+
         super().run()
+
 
     def build_extension(self, ext):
         # TODO check that there is only one source file for zig
@@ -30,35 +54,49 @@ class MultiBuildExt(build_ext):
         output_dir = os.path.dirname(output_filepath)
         os.makedirs(output_dir, exist_ok=True)
 
-        # print(f"{source_file=}")
-        # print(f"{self.build_lib=}")
-        # print(f"{output_filepath=}")
-        # print(f"{output_dir=}")
-        # print()
-
+        print(f"{source_file=}")
+        print(f"{self.build_lib=}")
+        print(f"{output_filepath=}")
+        print(f"{output_dir=}")
+        print()
 
         if source_file.suffix == ".zig":
             print(f"{ext.name}: building with root file - {source_file}")
 
+            zig_ext = Path(output_filepath).suffix
+            zig_name = f"lib{ext.name}{zig_ext}"
+            print(f"{zig_name=}\n")
+            zig_output = str(Path(output_filepath)
+                             .with_name(zig_name)
+                             .resolve())
+
+            print(f"{ext.name}: output library to - {zig_output}")
+            print()
+
+
             zig_build = [
-                #"zig",
                 "build-lib",
                 "-dynamic",
                 "-O",
                 "ReleaseFast",
                 "-lc",
-                #f"-femit-bin={self.get_ext_fullpath(ext.name)}",
+                f"-femit-bin={zig_output}",
                 *[f"-I{d}" for d in self.include_dirs],
-                source_file.name,
+                str(source_file),
             ]
 
             # for zz in zig_build:
             #     print(f"{zz}")
             # print()
 
-            # Calls the ziglang pypi package:
-            # https://pypi.org/project/ziglang/
-            subprocess.call([sys.executable, "-m", "ziglang"] + zig_build)
+            try:
+                # Calls the ziglang pypi package:
+                # https://pypi.org/project/ziglang/
+                subprocess.check_call([sys.executable, "-m", "ziglang"] + zig_build)
+                print(f"{ext.name}: Zig build successful")  # Add this line
+            except subprocess.CalledProcessError as e:
+                print(f"{ext.name}: Zig build failed: {e}")
+                raise  # Re-raise the exception to stop the build
 
         elif (source_file.suffix == ".c"
             or source_file.suffix == ".pyx"
@@ -77,21 +115,28 @@ class MultiBuildExt(build_ext):
 #-------------------------------------------------------------------------------
 # Extensions
 
+H_DIRS = [numpy.get_include(),
+          str(Path.cwd()/"src"/"zig"),]
+
+# LIB_DIRS = [#str(Path.cwd()),
+#             str(Path.cwd()/"src"),
+#             str(Path.cwd()/"src"/"zig"),
+#             str(Path.cwd()/"src"/"cython"),]
+
 # zig extension
 ext_zig = Extension(
     "zigarray",
-    sources=["./zigarray.zig",]
+    sources=["src/zigcython/zig/zigarray.zig",]
 )
 
 # cython extension linking zig
 ext_cython = Extension(
-        "zcyth",
-        sources=["zcyth.py",],
-        include_dirs=[Path.cwd().as_posix(),
-                      numpy.get_include()],
-        libraries=["zigarray",], # without the lib and so extension
-        library_dirs=[Path.cwd().as_posix(),],
-        runtime_library_dirs=[Path.cwd().as_posix(),],
+        "zigcython.cython.zcyth",
+        sources=["src/zigcython/cython/zcyth.py",],
+        include_dirs=H_DIRS,
+        libraries=[ext_zig.name,], # without the lib and so extension
+        library_dirs=[],
+        runtime_library_dirs=[],
         extra_compile_args=["-ffast-math",
                             "-O3"],
     )
