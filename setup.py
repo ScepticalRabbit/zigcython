@@ -36,18 +36,16 @@ class MultiBuildExt(build_ext):
         # print(f"{output_dir=}")
         # print()
 
-
         if source_file.suffix == ".zig":
             print(f"{ext.name}: building with root file - {source_file}")
 
             zig_build = [
-                #"zig",
                 "build-lib",
                 "-dynamic",
                 "-O",
                 "ReleaseFast",
                 "-lc",
-                #f"-femit-bin={self.get_ext_fullpath(ext.name)}",
+                f"-femit-bin={self.get_ext_fullpath(ext.name)}",
                 *[f"-I{d}" for d in self.include_dirs],
                 source_file.name,
             ]
