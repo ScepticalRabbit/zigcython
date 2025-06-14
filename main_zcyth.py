@@ -15,6 +15,7 @@ def main() -> None:
     v_out = zcyth.add_vec(v0,v1)
 
     print(f"{v_out=}")
+    print()
 
 if __name__ == "__main__":
     main()
