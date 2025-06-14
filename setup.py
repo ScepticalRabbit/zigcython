@@ -248,6 +248,7 @@ ext_cython = Extension(
         libraries=[ext_zig.name,],  # without the lib and so extension - e.g. libzigarray.so - zig
         library_dirs=[],            # populated by run() above
         runtime_library_dirs=PLATFORM_INFO["runtime_lib_dirs"],
+        headers = ["src/zigcython/cython/zigarray.h",],
         extra_compile_args=["-ffast-math",
                             "-O3"],
     )
