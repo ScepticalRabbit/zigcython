@@ -8,8 +8,11 @@
 - Implement the `language` flag for extensions as well as defaulting to deal with extensions based on file extension
 
 
-# General Notes
+# IMPORTANT General Notes
 - Inheritance is used when overriding the `build_ext` class. This means you can go to the standard build process at any point using `super()` e.g. `super().run()` or `super().build_extension(ext)`.
+- When calling `build_ext --inplace`: In the `run()` function using `self.get_ext_fullpath(ext.name)` will return the **INSTALL/SRC** directory
+- When calling `build_ext --inplace`: In the `build_extension()` function using `self.get_ext_fullpath(ext.name)` will return the **BUILD** directory.
+- When calling `pip install .`: both point at the **BUILD** directory.
 
 # Custom `build_ext` class
 There are several key methods to possibly override:
@@ -36,13 +39,11 @@ These are relevant variables for the `build_ext` class itself:
 
 - `self.build_temp`: where intermediate build files go e.g. object files like .o.
 
-- `self.build_lib`: where compiled/shared libraries go, this is where `setuptools` expectcs to find compiled extensions. Typically: `build/lib.{platform-arch-python_version}`.
+- `self.build_lib`: where compiled/shared libraries go, this is where `setuptools` expects to find compiled extensions. Typically: `build/lib.{platform-arch-python_version}`.
 
 - `self.inplace`: compiler flag indicatin whether compiled extensions should be copied into the source package directory - useful for dev mode.
 
 - `self.plat_name`: The platform name in the form `{platform-arch}` e.g. `'linuz-x86_64'` or `'win-amd64'`.
-
-- `self.plat_specifier`: A string combining the platform and python version e.g. `'linux-x86_64-3.11'` used for constructing `build_lib` and `build_temp` paths.
 
 - `self.include_dirs`: A list of directories to search for header files. Corresponds to the `-I` compiler flag.
 
