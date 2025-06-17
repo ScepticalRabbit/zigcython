@@ -15,7 +15,7 @@ PACKAGE_NAME = "zigcython"
 #-------------------------------------------------------------------------------
 # Platform-specific utilities
 
-def get_platform_info() -> dict[str,str | list[str]]:
+def get_platform_info() -> dict[str,str]:
     """Get platform-specific file extensions and settings"""
     system = platform.system().lower()
 
@@ -41,10 +41,12 @@ def get_platform_info() -> dict[str,str | list[str]]:
 
 PLATFORM_INFO = get_platform_info()
 
-def get_zig_lib_name(ext_name: str) -> str:
-    lib_name = ext_name.rsplit(".",maxsplit=1)[-1]
-    return f"{PLATFORM_INFO['lib_prefix']}{lib_name}{PLATFORM_INFO['lib_ext']}"
+def lib_base_name(ext_full_name: str) -> str:
+    return ext_full_name.rsplit(".",maxsplit=1)[-1]
 
+def lib_link_name(ext_name: str) -> str:
+    lib_name = lib_base_name(ext_name)
+    return f"{PLATFORM_INFO['lib_prefix']}{lib_name}{PLATFORM_INFO['lib_ext']}"
 
 #-------------------------------------------------------------------------------
 # Custom Multi-Build
@@ -152,12 +154,11 @@ class MultiBuildExt(build_ext):
         print()
 
         # Post-processing step goes here all libraries are now built
-
         if self.inplace:
             # Here we need to copy any zig libraries to the src directory in place
             for ee in self.extensions:
                 if Path(ee.sources[0]).suffix == ".zig":
-                    zig_lib_name = get_zig_lib_name(ee.name)
+                    zig_lib_name = lib_link_name(ee.name)
 
                     zig_lib_path = (Path(self.build_lib).resolve()
                                     / self.get_ext_filename(ee.name))
@@ -167,10 +168,44 @@ class MultiBuildExt(build_ext):
                     zig_src_path = zig_src_path.parent / zig_lib_name
                     shutil.copy2(zig_lib_path,zig_src_path)
 
-            #shutil.copy2(zig_python_output,zig_lib_output)
+
+        # 1) loop through all extensions - do they have libraries?
+        # 2) if yes, check all other extensions to see if they are the libraries
+        # 3) if one extension links to another then copy the built library into
+        #    the same directory as the one linking to it
+        for ext_with_lib in self.extensions:
+            if ext_with_lib.libraries:
+
+                for lib in ext_with_lib.libraries:
+                    for ext_link_lib in self.extensions:
+                        if (lib == lib_base_name(ext_link_lib.name)
+                            or lib == ext_link_lib.name):
+
+                            print("Found extension library cross link:")
+                            print(4*" "+ f"{ext_with_lib.name} -> {ext_link_lib.name}")
+
+                            lib_name = lib_link_name(ext_link_lib.name)
+
+                            run_lib_path = Path(self.get_ext_fullpath(ext_with_lib.name))
+                            run_lib_path = run_lib_path.resolve().parent / lib_name
+
+                            orig_lib_path = Path(self.get_ext_fullpath(ext_link_lib.name))
+                            orig_lib_path = orig_lib_path.resolve().parent / lib_name
+
+                            print("Copying linked extension library:")
+                            print(4*" " + f"From: {str(orig_lib_path)}")
+                            print(4*" " + f"To  : {str(run_lib_path)}")
+                            print()
+
+                            # Need to make sure linked library is in the same
+                            # directory as the library looking for it - rpath
+                            # is added for linux/mac and windows also looks in
+                            # the same directory.
+                            shutil.copy2(orig_lib_path,run_lib_path)
 
 
-        # raise Exception("Stop build!")
+
+        #raise Exception("Stop build!")
 
 
     def build_extension(self, ext):
@@ -221,7 +256,7 @@ class MultiBuildExt(build_ext):
             print(f"Building with root file:\n    {first_source_path}")
 
             zig_python_output = self.get_ext_fullpath(ext.name)
-            zig_lib_name = get_zig_lib_name(ext.name)
+            zig_lib_name = lib_link_name(ext.name)
             zig_lib_output = output_ext_dir / zig_lib_name
 
             print(f"Output zig library to:\n    {zig_lib_output}")
@@ -287,7 +322,7 @@ class MultiBuildExt(build_ext):
 
             print("\n"+80*"L")
             for ll in ext.libraries:
-                link_lib_name = get_zig_lib_name(ll)
+                link_lib_name = lib_link_name(ll)
                 link_lib_output = str(Path(self.build_lib) / link_lib_name)
 
                 print(f"{link_lib_output=}")
@@ -389,8 +424,8 @@ ext_modules = [ext_zig] + cythonize(ext_cython,annotate=True)
 setup(
     name="zigcython",
     ext_modules=ext_modules,
-    cmdclass={"build_ext": MultiBuildExt,
-              "install": MultiBuildInst},
+    cmdclass={"build_ext": MultiBuildExt},
+              #"install": MultiBuildInst},
     zip_safe=False,
     package_data={
         "zigcython": [f"*{PLATFORM_INFO['lib_ext']}"],
