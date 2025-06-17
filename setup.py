@@ -1,13 +1,11 @@
-import os
 import subprocess
 import sys
 import shutil
 import platform
+from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-from setuptools.command.install import install
 from Cython.Build import cythonize
-from pathlib import Path
 import numpy
 
 PACKAGE_NAME = "zigcython"
@@ -70,27 +68,9 @@ class MultiBuildExt(build_ext):
 
         print(f"Creating library build output directory at:\n    {build_lib_path}\n")
 
-        # NOTE: the build temp dir should not contain actual libraries
-        build_temp_str = str(Path(self.build_temp).resolve())
-        if build_temp_str not in self.library_dirs:
-            self.library_dirs.append(build_temp_str)
-
-        # Add the root build directory to the library and runtime path
-        build_lib_str = str(Path(self.build_lib).resolve())
-        if  build_lib_str not in self.library_dirs:
-            self.library_dirs.append(build_lib_str)
-        # if build_lib_str not in self.rpath:
-        #      self.rpath.append(build_lib_str)
-
+        # Add platform specific runtime paths
         if PLATFORM_INFO["runtime_lib_dir"] not in self.rpath:
             self.rpath.append(PLATFORM_INFO["runtime_lib_dir"])
-
-        # Add root temp and lib build directories for all extensions
-        for ee in self.extensions:
-            if build_temp_str not in ee.library_dirs:
-                ee.library_dirs.append(build_temp_str)
-            if build_lib_str not in ee.library_dirs:
-                ee.library_dirs.append(build_lib_str)
 
         # Extract a list of all extension output directories (will be sub
         # directories of the root directories above)
@@ -102,26 +82,18 @@ class MultiBuildExt(build_ext):
         # Add all extensions specific output directories to all other extensions
         # for libraries and runtime
         for dd in ext_dirs:
+            if dd not in self.library_dirs:
+                self.library_dirs.append(dd)
+
+            if dd not in self.rpath:
+                self.rpath.append(dd)
+
             for ee in self.extensions:
                 if dd not in ee.library_dirs:
                     ee.library_dirs.append(dd)
 
                 if dd not in ee.runtime_library_dirs:
                     ee.runtime_library_dirs.append(dd)
-
-                if dd not in self.rpath:
-                    self.rpath.append(dd)
-
-        # Print the global libraries and paths
-        # print(80*"-")
-        # print("Global directories in 'run', pre-run")
-        # print(2*" "+"include_dirs:")
-        # [print(6*" " + f"{dd}") for dd in self.include_dirs]
-        # print(2*" "+"library_dirs:")
-        # [print(6*" " + f"{dd}") for dd in self.library_dirs]
-        # print(2*" "+"runtime_library_dirs:")
-        # [print(6*" " + f"{dd}") for dd in self.rpath]
-        # print()
 
         # Print the configures extensions libraries
         for ee in self.extensions:
@@ -137,8 +109,7 @@ class MultiBuildExt(build_ext):
             [print(6*" " + f"{dd}") for dd in ee.libraries]
             print()
 
-
-        # Run the standard build process looping over - build_extension(ext)
+        # Run the standard build process looping over 'build_extension(ext)'
         super().run()
 
         # Print the global libraries and paths
@@ -149,13 +120,12 @@ class MultiBuildExt(build_ext):
         [print(6*" " + f"{dd}") for dd in self.include_dirs]
         print(2*" "+"library_dirs:")
         [print(6*" " + f"{dd}") for dd in self.library_dirs]
-        print(2*" "+"rpath:")
+        print(2*" "+"rpath:") # runtime library dirs
         [print(6*" " + f"{dd}") for dd in self.rpath]
         print()
 
-        # Post-processing step goes here all libraries are now built
         if self.inplace:
-            # Here we need to copy any zig libraries to the src directory in place
+            # Here we need to copy zig libraries to the src directory in-place
             for ee in self.extensions:
                 if Path(ee.sources[0]).suffix == ".zig":
                     zig_lib_name = lib_link_name(ee.name)
@@ -168,7 +138,7 @@ class MultiBuildExt(build_ext):
                     zig_src_path = zig_src_path.parent / zig_lib_name
                     shutil.copy2(zig_lib_path,zig_src_path)
 
-
+        # Make sure linked libraries are in the same folder:
         # 1) loop through all extensions - do they have libraries?
         # 2) if yes, check all other extensions to see if they are the libraries
         # 3) if one extension links to another then copy the built library into
@@ -204,19 +174,16 @@ class MultiBuildExt(build_ext):
                             shutil.copy2(orig_lib_path,run_lib_path)
 
 
-
-        #raise Exception("Stop build!")
-
-
     def build_extension(self, ext):
-        # TODO check that there is only one source file for zig
         print(80*"=")
         print("MultiBuildExt: build_extension")
         print(f"Extension = {ext.name}")
         print(80*"=")
         first_source_path = Path(ext.sources[0])
 
-        # Append all extension output directories to all other extensions
+        # Append all extension output directories to all other extensions.
+        # This has to be done again as paths change between build and run when
+        # the --in-place flag is used!
         ext_dirs = []
         for ee in self.extensions:
             ext_path = str(Path(self.get_ext_fullpath(ee.name))
@@ -249,6 +216,8 @@ class MultiBuildExt(build_ext):
         print(f"    {output_ext_dir}\n")
 
         if first_source_path.suffix == ".zig":
+            assert len(ext.sources) == 1, "Zig compiler expects a single source file"
+
             print(80*"-")
             print("Zig: Building Extension")
             print(f"{ext.name}")
@@ -287,27 +256,13 @@ class MultiBuildExt(build_ext):
                 subprocess.check_call([sys.executable, "-m", "ziglang"] + zig_build)
                 print("Zig build successful\n")
 
-                #Copy python extension name to linkable library name
+                # Copy python extension name to linkable library name
                 shutil.copy2(zig_python_output,zig_lib_output)
                 print(f"Copied python extension to:\n    {Path(zig_lib_output)}")
-
-                # Copy linked zig dynamic library to the run time locations
-                # NOTE: this is automatically done for the python extension lib
-                # runtime_lib_path = Path(self.build_lib) / zig_lib_name
-                # shutil.copy2(zig_lib_output, runtime_lib_path)
-                # print(f"{ext.name}: Copied library to:\n    {runtime_lib_path}")
-
-                # TODO: On Windows, we might also need to copy to the same directory as the Python extension
-                if platform.system().lower() == "windows":
-                    windows_lib_path = output_ext_dir / zig_lib_name
-                    shutil.copy2(zig_lib_output, windows_lib_path)
-                    print(f"Copied library to {windows_lib_path} (Windows)")
 
             except subprocess.CalledProcessError as e:
                 print(f"{ext.name}: Zig build failed: {e}")
                 raise
-
-            #raise Exception("Stop Zig build!")
 
         elif (first_source_path.suffix == ".c"
             or first_source_path.suffix == ".pyx"
@@ -320,15 +275,6 @@ class MultiBuildExt(build_ext):
             print(f"{ext.name}: found C/C++/Cython extension using default build process")
             super().build_extension(ext)
 
-            print("\n"+80*"L")
-            for ll in ext.libraries:
-                link_lib_name = lib_link_name(ll)
-                link_lib_output = str(Path(self.build_lib) / link_lib_name)
-
-                print(f"{link_lib_output=}")
-
-            print(80*"L"+"\n")
-
         else:
             print(80*"-")
             print("Unrecognised: Default Build Extension")
@@ -338,56 +284,6 @@ class MultiBuildExt(build_ext):
             super().build_extension(ext)
 
         print(f"\nbuild_ext complete for: {ext.name}\n")
-
-
-#-------------------------------------------------------------------------------
-# Custom Install Command
-
-class MultiBuildInst(install):
-
-    def run(self):
-        print(80*"-")
-        print("MultiBuildInst: run")
-        print(80*"-")
-
-
-        print(80*"Z")
-        print("Running custom install...")
-        print(80*"Z")
-        print()
-        print(f"{self.install_lib=}")
-        print(f"{self.install_platlib=}")
-        print(f"{self.install_libbase=}")
-        print(f"{self.install_path_file=}")
-        print(f"{self.path_file=}")
-        print(f"{self.extra_dirs=}")
-        print(f"{self.extra_path=}")
-        print()
-
-        # install_path = Path(self.install_lib) / PACKAGE_NAME
-        # if not install_path.is_dir():
-        #     install_path.mkdir(exist_ok=True,parents=True)
-
-        # for ee in self.distribution.ext_modules:
-        #     print(f"ext module name: {ee.name}")
-
-        #     if Path(ee.sources[0]).suffix == ".zig":
-
-        #         zig_lib_name = f"{PLATFORM_INFO['lib_prefix']}{ee.name}{PLATFORM_INFO['lib_ext']}"
-        #         zig_lib_build = str(Path(self.build_lib) / zig_lib_name)
-        #         zig_lib_run = str(Path(self.install_lib) / PACKAGE_NAME / zig_lib_name)
-        #         print(f"{zig_lib_build=}")
-        #         print(f"{zig_lib_run=}")
-        #         print()
-
-        #         shutil.copy2(zig_lib_build,zig_lib_run)
-
-        # print()
-
-        print("Running standard install...")
-        super().run()
-
-        raise Exception("Stop install!")
 
 #-------------------------------------------------------------------------------
 # Extensions
@@ -425,7 +321,6 @@ setup(
     name="zigcython",
     ext_modules=ext_modules,
     cmdclass={"build_ext": MultiBuildExt},
-              #"install": MultiBuildInst},
     zip_safe=False,
     package_data={
         "zigcython": [f"*{PLATFORM_INFO['lib_ext']}"],
