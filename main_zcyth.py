@@ -1,6 +1,11 @@
 import numpy as np
-import zigcython.cython.zcyth as zcyth
-#import src.zigcython.cython.zcyth as zcyth
+
+# Use this import if you are just building the extension
+import src.zigcython.cython.zcyth as zcyth
+
+# Use this import if you `pip install .`
+#import zigcython.cython.zcyth as zcyth
+
 
 def main() -> None:
     print()

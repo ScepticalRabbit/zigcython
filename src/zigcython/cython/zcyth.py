@@ -15,9 +15,9 @@ def add_vec(v0: cython.double[::1],
     v_out: cython.double[::1] = v_out_np
 
     zigarray.addVec(cython.address(v0[0]),
-                    cython.address(v1[0]),
-                    cython.address(v_out[0]),
-                    v_len)
+                       cython.address(v1[0]),
+                       cython.address(v_out[0]),
+                       v_len)
 
     return v_out_np
 
