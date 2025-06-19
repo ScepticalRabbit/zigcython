@@ -19,7 +19,12 @@ Build the Zig dynamic library and then the Cython files linking the Zig dynamic 
 python setup.py build_ext --inplace -f
 ```
 
-Now run the `main_cyth.py` which calls the Zig library through cython:
+You can also install the `zigcython` to your venv using pip:
+```shell
+pip install -e .
+```
+
+Now run the `main_cyth.py` which calls the Zig library through Cython:
 ```shell
 python main_zcyth.py
 ```
@@ -94,7 +99,27 @@ def add_vec(v0: cython.double[::1],
 
 A few things to note about this Cython wrapper. First we need to make sure our arrays are row major in C style. Using the Cython memory view syntax of [::1] means Cython will yell at us if get this wrong. The other thing it to make sure the data types of our numpy arrays and Cython memory view are consistent with our C interface. So make sure you set the numpy array `dtype` to match. If you have trouble with numpy arrays not being row major then this can be fixed in python using `array = np.ascontinguousarray(array)`. Finally, we send pointers to the first element in our Cython memory views using the `cython.address(array[0])`.
 
-### Python
-All the magic happens in the setup.py file. TODO
+### Python: Build
+All the magic happens in the setup.py file. Here we use the `ziglang` package from pypi to compile our zig code as part of the python build process. Essentially our `build_ext` function looks for a source file with an extension of `.zig` and then invokes the zig compiler on it. If it finds anything else it just invokes the normal python build process.
+
+There is also a bunch of path logic to make sure that the build and runtime directories for the library are correct so that linking works at build and runtime. The key step here was to find any libraries that cross reference each other (e.g. our Cython library which needs our Zig library) then copy the linked library to be in the same directory as the extension that needs it. We also need to make sure the runtime path was set correctly to look in the same directory as the library origin for linked libraries.
+
+### Python: Calling our Library
+Calling our library is the easy part. We just import the library create a couple of numpy arrays and pass them to the function:
+
+```python
+import numpy as np
+import src.zigcython.cython.zcyth as zcyth
+
+v0 = np.full((7,),1.0,dtype=np.float64)
+v1 = np.full((7,),1.0,dtype=np.float64)
+
+v_out = zcyth.add_vec(v0,v1)
+
+print(f"{v_out=}")
+
+```
+
+
 
 
