@@ -4,12 +4,28 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct data {
+//------------------------------------------------------------------------------
+void addVec(const double* v0, const double* v1, double* v_out, size_t len);
+
+//------------------------------------------------------------------------------
+typedef struct Data {
     double valf;
     int32_t vali;
     size_t valu;
-} data_t;
+} Data;
 
-void addVec(const double* v0, const double* v1, double* v_out, size_t len);
+Data dataInit();
+void dataSet(Data in_data);
+
+//------------------------------------------------------------------------------
+typedef struct MatrixF64 {
+    double* elems;
+    size_t* dims;
+    size_t numel;
+    size_t ndim;
+} MatrixF64;
+
+void matrixToZig(double* elems, size_t* dims, size_t numel, size_t ndim);
+void matStructToZig(MatrixF64 mat);
 
 #endif
