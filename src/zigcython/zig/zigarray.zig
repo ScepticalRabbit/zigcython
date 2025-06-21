@@ -85,6 +85,10 @@ fn printMatrix(mat: MatrixF64) void {
 
 }
 
+//------------------------------------------------------------------------------
+// Example of sending a camera data struct from Python -> Zig
+
+
 
 
 

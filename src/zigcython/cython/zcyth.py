@@ -61,6 +61,7 @@ def matrix_to_zig(in_mat: np.ndarray) -> None:
         ndims,
     )
 
+
 def matrix_struct_to_zig(in_mat: np.ndarray) -> None:
 
     shape_np = np.array(in_mat.shape,dtype=np.uintp)
@@ -77,6 +78,8 @@ def matrix_struct_to_zig(in_mat: np.ndarray) -> None:
     )
 
     zigarray.matStructToZig(mat_struct)
+
+
 
 
 
