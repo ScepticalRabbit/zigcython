@@ -297,6 +297,7 @@ H_DIRS = [numpy.get_include(),
 ext_zig = Extension(
     name="zigcython.zig.zigarray",
     sources=["src/zigcython/zig/zigarray.zig",],
+    extra_compile_args=["-fincremental",],
 )
 
 # cython extension linking zig

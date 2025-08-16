@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zigcython"
 version = "2025.6.0"
-description = "An all-in-one package for sensor simulation, sensor uncertainty quantification, sensor placement optimisation and simulation calibration or validation."
+description = "A minimal working example of python->cython->Zig and back again."
 authors = [
   { name = "scepticalrabbit et al.", email = "thescepticalrabbit@gmail.com" },
 ]
