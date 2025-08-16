@@ -1,6 +1,5 @@
 # zigcython
-A minimal working example linking Python to Zig through Cython to send numpy arrays to Zig. For now it can deal with 1D numpy arrays but I will be extending this in the future for multi-dimensional arrays and structs.
-
+A minimal working example linking Python to Zig through Cython to send numpy arrays to Zig. The example described below details how to send 1D numpy arrays but the code files include additional examples of sending ndarrays as structs back and forth between Python and Zig.
 
 ## Running the Example
 First create a python virtual environment in the repo directory and activate it:
@@ -24,9 +23,9 @@ You can also install the `zigcython` to your venv using pip:
 pip install -e .
 ```
 
-Now run the `main_cyth.py` which calls the Zig library through Cython:
+Now run the `main_cyth.py` in the src directory which calls the Zig library through Cython:
 ```shell
-python main_zcyth.py
+python src/main_zcyth.py
 ```
 
 ## How it works: Zig to Numpy
@@ -97,12 +96,12 @@ def add_vec(v0: cython.double[::1],
     return v_out_np
 ```
 
-A few things to note about this Cython wrapper. First we need to make sure our arrays are row major in C style. Using the Cython memory view syntax of [::1] means Cython will yell at us if get this wrong. The other thing it to make sure the data types of our numpy arrays and Cython memory view are consistent with our C interface. So make sure you set the numpy array `dtype` to match. If you have trouble with numpy arrays not being row major then this can be fixed in python using `array = np.ascontinguousarray(array)`. Finally, we send pointers to the first element in our Cython memory views using the `cython.address(array[0])`.
+A few things to note about this Cython wrapper. First we need to make sure our arrays are row major in C style. Using the Cython memory view syntax of [::1] means Cython will yell at us if get this wrong. The other thing is to make sure the data types of our numpy arrays and Cython memory view are consistent with our C interface. So make sure you set the numpy array `dtype` to match. If you have trouble with numpy arrays not being row major then this can be fixed in python using `array = np.ascontinguousarray(array)`. Finally, we send pointers to the first element in our Cython memory views using the `cython.address(array[0])`.
 
 ### Python: Build
 All the magic happens in the setup.py file. Here we use the `ziglang` package from pypi to compile our zig code as part of the python build process. Essentially our `build_ext` function looks for a source file with an extension of `.zig` and then invokes the zig compiler on it. If it finds anything else it just invokes the normal python build process.
 
-There is also a bunch of path logic to make sure that the build and runtime directories for the library are correct so that linking works at build and runtime. The key step here was to find any libraries that cross reference each other (e.g. our Cython library which needs our Zig library) then copy the linked library to be in the same directory as the extension that needs it. We also need to make sure the runtime path was set correctly to look in the same directory as the library origin for linked libraries.
+There is also a bunch of path logic to make sure that the build and runtime directories for the library are correct so that linking works at build and runtime. The key step here was to find any libraries that cross reference each other (e.g. our Cython library which needs our Zig library) then copy the linked library to be in the same directory as the extension that needs it. We also need to make sure the runtime path was set correctly to look in the same directory as the library origin for linked libraries. I have tested this with a normal venv and editable install in a venv and everything seems to work.
 
 ### Python: Calling our Library
 Calling our library is the easy part. We just import the library create a couple of numpy arrays and pass them to the function:
